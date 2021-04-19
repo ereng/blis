@@ -1,0 +1,101 @@
+version: "3.7"
+services:
+  # NGINX - Service
+  # proxy:
+  #   image: nginx:alpine
+  #   container_name: proxy
+  #   restart: unless-stopped
+  #   tty: true
+  #   volumes:
+  #     - ./etc/nginx/conf.d/proxy.conf.nginx:/etc/nginx/conf.d/default.conf
+  #   ports:
+  #     - 80:80
+  #   depends_on:
+  #     - app
+  #     - blisfront
+  #     - www
+  #   networks:
+  #     - app-network
+
+  www:
+    image: nginx:alpine
+    container_name: server
+    restart: unless-stopped
+    tty: true
+    volumes:
+      - ./backend:/var/www
+      - ./etc/nginx/conf.d/default.conf.nginx:/etc/nginx/conf.d/default.conf
+    ports:
+      - 8081:80
+    depends_on:
+      - app
+      - blisfront
+    networks:
+      - app-network
+
+  app:
+    build:
+      context: backend
+    # this way container interacts with host on behalf of current user.
+    # !!! NOTE: $UID is a _shell_ variable, not an environment variable!
+    # To make it available as a shell var, make sure you have this in your ~/.bashrc (./.zshrc etc):
+    # export UID="$UID"
+    # user: ${UID}:${UID}
+    container_name: blisback
+    restart: unless-stopped
+    tty: true
+    working_dir: /var/www
+    volumes:
+      - ./backend:/var/www
+      - ./etc/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    networks:
+      - app-network
+
+  blisfront:
+    image: blisfront
+    build:
+      context: frontend
+    # image: node:current-alpine
+    container_name: blisfront
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "8080:80"
+    # user: ${UID}:${UID}
+    depends_on:
+      - app
+    networks:
+      - app-network
+
+  # MariaDB - Service
+  blisdb:
+    image: mariadb:10.5.6
+    container_name: blisdb
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_DATABASE: blis
+      MYSQL_ROOT_PASSWORD: bL!5
+    volumes:
+      - mariadbdata:/var/lib/mysql
+      - ./etc/mysql/my.cnf:/etc/mysql/my.cnf
+    networks:
+      - app-network
+
+volumes: 
+  certs:
+  html:
+  vhost:
+  dhparam:
+  mariadbdata:
+    driver: local
+
+networks:
+  app-network:
+    driver: bridge
+    # external: false
+  # net:
+    # external: true
+
